@@ -1,9 +1,9 @@
 {
-  "id": "BN-260815-9059",
-  "active": false,
+  "id": "BN-260816-BAFE",
+  "active": true,
   "sticky": false,
-  "severity": "info",
+  "severity": "urgent",
   "title": "앱 이용 안내",
-  "body": "앱 테스트 중 입니다 3",
-  "updatedAt": "2026-08-15T15:23:42.884Z"
+  "body": "앱 테스트 중 입니다 4",
+  "updatedAt": "2026-08-15T15:24:06.651Z"
 }
