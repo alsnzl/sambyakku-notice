@@ -15,26 +15,84 @@
         color: #1b2422;
         padding: 1.5rem;
         text-align: center;
+        line-height: 1.5;
       }
       a {
         color: #2f5d50;
       }
+      .links {
+        display: grid;
+        gap: 0.75rem;
+        justify-items: center;
+        margin-top: 0.5rem;
+      }
     </style>
   </head>
   <body>
-    <p>앱으로 돌아가는 중입니다…</p>
-    <p><a id="open" href="#">앱 열기</a></p>
+    <div>
+      <p id="msg">로그인 마무리 중…</p>
+      <div class="links">
+        <a id="web" href="#">웹에서 계속</a>
+        <a id="open" href="#">앱 열기</a>
+      </div>
+    </div>
     <script>
       ;(function () {
-        var q = window.location.search || ''
-        var h = window.location.hash || ''
-        var target = 'sambyakku://open/auth-callback' + q + h
-        var link = document.getElementById('open')
-        link.href = target
-        window.location.replace(target)
+        /*
+         * Native Android: Custom Tabs land here, then deep-link into the app.
+         * Desktop / mobile web: Site URL may send browsers here by mistake —
+         * forward ?code= / hash tokens back to the Vite origin so PKCE can finish
+         * (verifier lives on that origin, not on this Pages host).
+         */
+        var cur = new URL(window.location.href)
+        var q = cur.search || ''
+        var h = cur.hash || ''
+        var deep = 'sambyakku://open/auth-callback' + q + h
+        var webBases = [
+          'http://127.0.0.1:5173/',
+          'http://localhost:5173/',
+        ]
+
+        function withParams(base) {
+          var u = new URL(base)
+          cur.searchParams.forEach(function (value, key) {
+            u.searchParams.set(key, value)
+          })
+          u.hash = cur.hash
+          return u.toString()
+        }
+
+        var msg = document.getElementById('msg')
+        var web = document.getElementById('web')
+        var open = document.getElementById('open')
+        web.href = withParams(webBases[0])
+        open.href = deep
+
+        var mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+        var hasAuth =
+          cur.searchParams.has('code') ||
+          cur.searchParams.has('error') ||
+          /access_token=/.test(h)
+
+        if (mobile) {
+          msg.textContent = '앱으로 돌아가는 중입니다…'
+          window.location.replace(deep)
+          setTimeout(function () {
+            open.textContent = '자동으로 안 열리면 여기를 누르세요'
+            if (hasAuth) {
+              web.textContent = '웹(로컬)에서 계속'
+            }
+          }, 900)
+          return
+        }
+
+        msg.textContent = '웹으로 로그인 연결 중…'
+        window.location.replace(withParams(webBases[0]))
         setTimeout(function () {
-          link.textContent = '자동으로 안 열리면 여기를 누르세요'
-        }, 800)
+          msg.textContent = '자동 이동이 안 되면 아래에서 선택하세요.'
+          web.textContent = '웹에서 계속 (127.0.0.1:5173)'
+          open.textContent = '앱 열기'
+        }, 700)
       })()
     </script>
   </body>
