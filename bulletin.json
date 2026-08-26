@@ -1,9 +1,9 @@
 {
-  "id": "BN-260826-7716",
-  "active": true,
+  "id": "BN-260826-4BE7",
+  "active": false,
   "sticky": false,
-  "severity": "urgent",
+  "severity": "info",
   "title": "앱 이용 안내",
-  "body": "앱 테스트 중 입니다 6",
-  "updatedAt": "2026-08-26T13:22:23.051Z"
+  "body": "앱 테스트 중 입니다 5",
+  "updatedAt": "2026-08-26T13:23:05.582Z"
 }
