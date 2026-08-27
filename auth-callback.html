@@ -24,33 +24,59 @@
         display: grid;
         gap: 0.75rem;
         justify-items: center;
-        margin-top: 0.5rem;
+        margin-top: 0.75rem;
+      }
+      .hint {
+        margin: 0.75rem 0 0;
+        color: #5c6a66;
+        font-size: 0.92rem;
+        max-width: 22rem;
+      }
+      .dev-only {
+        margin-top: 1.5rem;
+        font-size: 0.78rem;
+        color: #8a9692;
+      }
+      .dev-only a {
+        color: #8a9692;
       }
     </style>
   </head>
   <body>
     <div>
       <p id="msg">로그인 마무리 중…</p>
+      <p id="hint" class="hint" hidden></p>
       <div class="links">
-        <a id="web" href="#">웹에서 계속</a>
         <a id="open" href="#">앱 열기</a>
+        <a id="web" href="#" hidden>웹에서 계속 (로컬 개발)</a>
+        <a id="webAlt" href="#" hidden>다른 포트 (5174)</a>
       </div>
+      <p id="devNote" class="dev-only" hidden>
+        PC에서 Vite로 개발 중이면 아래 링크를 쓰세요.
+      </p>
     </div>
     <script>
       ;(function () {
         /*
-         * Native Android: Custom Tabs land here, then deep-link into the app.
-         * Desktop / mobile web: Site URL may send browsers here by mistake —
-         * forward ?code= / hash tokens back to the Vite origin so PKCE can finish
-         * (verifier lives on that origin, not on this Pages host).
+         * Native Android: Custom Tabs → deep link / intent into the app.
+         * Never auto-redirect phones to 127.0.0.1 (Site URL / old docs mistake).
+         * Desktop only: probe local Vite and forward ?code= for web OAuth.
          */
         var cur = new URL(window.location.href)
         var q = cur.search || ''
         var h = cur.hash || ''
-        var deep = 'sambyakku://open/auth-callback' + q + h
+        var pathAndQuery = 'open/auth-callback' + q + h
+        var deep = 'sambyakku://' + pathAndQuery
+        /* Prefer Chrome intent so package is explicit when custom scheme fails. */
+        var intent =
+          'intent://' +
+          pathAndQuery +
+          '#Intent;scheme=sambyakku;package=com.sambyakku.app;end'
         var webBases = [
           'http://127.0.0.1:5173/',
           'http://localhost:5173/',
+          'http://127.0.0.1:5174/',
+          'http://localhost:5174/',
         ]
 
         function withParams(base) {
@@ -63,36 +89,100 @@
         }
 
         var msg = document.getElementById('msg')
+        var hint = document.getElementById('hint')
         var web = document.getElementById('web')
+        var webAlt = document.getElementById('webAlt')
         var open = document.getElementById('open')
+        var devNote = document.getElementById('devNote')
         web.href = withParams(webBases[0])
+        webAlt.href = withParams(webBases[2])
         open.href = deep
 
-        var mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
-        var hasAuth =
-          cur.searchParams.has('code') ||
-          cur.searchParams.has('error') ||
-          /access_token=/.test(h)
+        var ua = navigator.userAgent || ''
+        var android = /Android/i.test(ua)
+        var mobile = /Android|iPhone|iPad|iPod/i.test(ua)
+        var forceDev = cur.searchParams.get('dev') === '1'
 
         if (mobile) {
           msg.textContent = '앱으로 돌아가는 중입니다…'
-          window.location.replace(deep)
+          hint.hidden = false
+          hint.textContent =
+            '자동으로 안 열리면 「앱 열기」를 누르세요. 앱이 설치되어 있어야 합니다.'
+          /* Try intent on Android first, then custom scheme. */
+          window.location.replace(android ? intent : deep)
           setTimeout(function () {
             open.textContent = '자동으로 안 열리면 여기를 누르세요'
-            if (hasAuth) {
-              web.textContent = '웹(로컬)에서 계속'
+            open.href = android ? intent : deep
+            /* Local Vite links only when ?dev=1 — never for normal users. */
+            if (forceDev) {
+              web.hidden = false
+              webAlt.hidden = false
+              if (devNote) devNote.hidden = false
             }
           }, 900)
           return
         }
 
-        msg.textContent = '웹으로 로그인 연결 중…'
-        window.location.replace(withParams(webBases[0]))
-        setTimeout(function () {
-          msg.textContent = '자동 이동이 안 되면 아래에서 선택하세요.'
-          web.textContent = '웹에서 계속 (127.0.0.1:5173)'
-          open.textContent = '앱 열기'
-        }, 700)
+        function showManual(alive) {
+          msg.textContent = alive
+            ? '웹으로 로그인 연결 중…'
+            : '로컬 개발 서버에 연결할 수 없습니다'
+          hint.hidden = false
+          hint.textContent = alive
+            ? '자동 이동이 안 되면 아래를 누르세요.'
+            : 'PC에서 npm run dev 를 켠 뒤, 아래 「웹에서 계속」을 누르세요. 주소는 http://127.0.0.1:5173 이어야 합니다.'
+          web.hidden = false
+          webAlt.hidden = false
+          if (devNote) devNote.hidden = false
+        }
+
+        function probe(url) {
+          return new Promise(function (resolve) {
+            var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
+            var timer = setTimeout(function () {
+              if (ctrl) ctrl.abort()
+              resolve(false)
+            }, 900)
+            fetch(url, {
+              method: 'GET',
+              mode: 'no-cors',
+              cache: 'no-store',
+              signal: ctrl ? ctrl.signal : undefined,
+            })
+              .then(function () {
+                clearTimeout(timer)
+                resolve(true)
+              })
+              .catch(function () {
+                clearTimeout(timer)
+                resolve(false)
+              })
+          })
+        }
+
+        /* Desktop / local web OAuth only */
+        open.hidden = true
+        msg.textContent = '로컬 서버 확인 중…'
+        probe('http://127.0.0.1:5173/')
+          .then(function (ok5173) {
+            if (ok5173) {
+              window.location.replace(withParams(webBases[0]))
+              setTimeout(function () {
+                showManual(true)
+              }, 1200)
+              return
+            }
+            return probe('http://127.0.0.1:5174/').then(function (ok5174) {
+              if (ok5174) {
+                window.location.replace(withParams(webBases[2]))
+                setTimeout(function () {
+                  showManual(true)
+                }, 1200)
+                return
+              }
+              showManual(false)
+            })
+          })
       })()
     </script>
   </body>
