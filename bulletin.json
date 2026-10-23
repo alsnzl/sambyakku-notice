@@ -1,9 +1,9 @@
 {
   "id": "BN-260826-619B",
-  "active": true,
+  "active": false,
   "sticky": false,
   "severity": "info",
   "title": "앱 이용 안내",
   "body": "베타 테스터가 되어주셔서 감사합니다",
-  "updatedAt": "2026-08-26T13:24:51.099Z"
+  "updatedAt": "2026-10-23T06:02:27.622Z"
 }
